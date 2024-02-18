@@ -10,15 +10,14 @@ import (
 
 func TestParse_OnlyText(t *testing.T) {
 	is := is.New(t)
-	input, err := os.Open("./testdata/only_text.html")
+	input, err := os.ReadFile("./testdata/only_text.html")
 	is.NoErr(err)
-	t.Cleanup(func() { input.Close() })
 
 	expectedContent, err := os.ReadFile("./testdata/only_text_expected.md")
 	is.NoErr(err)
 	expectedDate := time.Date(2024, time.February, 16, 7, 8, 34, 0, time.UTC)
 
-	info, err := Parse(input)
+	info, err := ParsePost(input)
 	is.NoErr(err)
 
 	is.Equal(info.Content, string(expectedContent))
@@ -28,13 +27,12 @@ func TestParse_OnlyText(t *testing.T) {
 
 func TestParse_SingleImage(t *testing.T) {
 	is := is.New(t)
-	input, err := os.Open("./testdata/single_image.html")
+	input, err := os.ReadFile("./testdata/single_image.html")
 	is.NoErr(err)
-	t.Cleanup(func() { input.Close() })
 
 	expectedDate := time.Date(2024, time.January, 30, 17, 0, 33, 0, time.UTC)
 
-	info, err := Parse(input)
+	info, err := ParsePost(input)
 	is.NoErr(err)
 
 	is.Equal(info.Content, "")
@@ -46,15 +44,14 @@ func TestParse_SingleImage(t *testing.T) {
 
 func TestParse_TextWithOneImage(t *testing.T) {
 	is := is.New(t)
-	input, err := os.Open("./testdata/text_with_one_image.html")
+	input, err := os.ReadFile("./testdata/text_with_one_image.html")
 	is.NoErr(err)
-	t.Cleanup(func() { input.Close() })
 
 	expectedContent, err := os.ReadFile("./testdata/text_with_one_image_expected.md")
 	is.NoErr(err)
 	expectedDate := time.Date(2024, time.January, 3, 19, 39, 2, 0, time.UTC)
 
-	info, err := Parse(input)
+	info, err := ParsePost(input)
 	is.NoErr(err)
 
 	is.Equal(info.Content, string(expectedContent))
@@ -66,13 +63,12 @@ func TestParse_TextWithOneImage(t *testing.T) {
 
 func TestParse_TextWithMultipleImages(t *testing.T) {
 	is := is.New(t)
-	input, err := os.Open("./testdata/text_with_multiple_images.html")
+	input, err := os.ReadFile("./testdata/text_with_multiple_images.html")
 	is.NoErr(err)
-	t.Cleanup(func() { input.Close() })
 
 	expectedDate := time.Date(2024, time.February, 16, 18, 58, 53, 0, time.UTC)
 
-	info, err := Parse(input)
+	info, err := ParsePost(input)
 	is.NoErr(err)
 
 	is.Equal(info.Content, "Text with multiple images")

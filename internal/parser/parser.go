@@ -1,9 +1,9 @@
 package parser
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"net/url"
 	"regexp"
@@ -13,17 +13,41 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-var backgroundImageRe = regexp.MustCompile(`background-image:url\('(.*)'\)`)
-
 type PostInfo struct {
 	Content    string
 	Date       time.Time
 	ImagesLink []string
 }
 
-// Parse returns the content, date and images of a post
-func Parse(data io.Reader) (PostInfo, error) {
-	doc, err := goquery.NewDocumentFromReader(data)
+func ParsePage(data []byte) ([]PostInfo, error) {
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+
+	var posts []PostInfo
+	doc.Find("dev.tgme_widget_message_wrap js-widget_message_wrap").Each(func(i int, s *goquery.Selection) {
+		html, err := s.Html()
+		if err != nil {
+			log.Println("[ERROR] failed to get HTML from selection", err)
+			return
+		}
+
+		info, err := ParsePost([]byte(html))
+		if err != nil {
+			log.Println("[ERROR] failed to parse post", err)
+			return
+		}
+
+		posts = append(posts, info)
+	})
+
+	return posts, nil
+}
+
+// ParsePost returns the content, date and images of a post
+func ParsePost(data []byte) (PostInfo, error) {
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(data))
 	if err != nil {
 		return PostInfo{}, err
 	}
@@ -76,6 +100,8 @@ func selectDate(doc *goquery.Document) (date time.Time, err error) {
 	})
 	return
 }
+
+var backgroundImageRe = regexp.MustCompile(`background-image:url\s?\('(.*)'\)`)
 
 // selectImages returns a slice of image URLs found in the post
 func selectImages(doc *goquery.Document) (images []string, err error) {
