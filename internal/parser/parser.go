@@ -42,6 +42,15 @@ func Parse(data io.Reader) (PostInfo, error) {
 
 		ret.Content = markdown
 	})
+	doc.Find("span.tgme_widget_message_meta").Find("time.datetime").Each(func(i int, s *goquery.Selection) {
+		date, err := time.Parse("2006-01-02T15:04:05-07:00", s.AttrOr("datetime", ""))
+		if err != nil {
+			selectionErr = err
+			log.Println("[ERROR] Failed to parse date", err)
+			return
+		}
+		ret.Date = date
+	})
 
 	return ret, selectionErr
 }
