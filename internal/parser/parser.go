@@ -1,13 +1,19 @@
 package parser
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"log"
+	"net/url"
+	"regexp"
 	"time"
 
 	md "github.com/JohannesKaufmann/html-to-markdown"
 	"github.com/PuerkitoBio/goquery"
 )
+
+var backgroundImageRe = regexp.MustCompile(`background-image:url\('(.*)'\)`)
 
 type PostInfo struct {
 	Content    string
@@ -42,6 +48,10 @@ func Parse(data io.Reader) (PostInfo, error) {
 
 		ret.Content = markdown
 	})
+	if selectionErr != nil {
+		return ret, selectionErr
+	}
+
 	doc.Find("span.tgme_widget_message_meta").Find("time.datetime").Each(func(i int, s *goquery.Selection) {
 		date, err := time.Parse("2006-01-02T15:04:05-07:00", s.AttrOr("datetime", ""))
 		if err != nil {
@@ -50,6 +60,34 @@ func Parse(data io.Reader) (PostInfo, error) {
 			return
 		}
 		ret.Date = date
+	})
+	if selectionErr != nil {
+		return ret, selectionErr
+	}
+
+	doc.Find("a.tgme_widget_message_photo_wrap").Each(func(i int, s *goquery.Selection) {
+		style, exists := s.Attr("style")
+		if !exists {
+			selectionErr = errors.New("style attribute not found")
+			log.Println("[ERROR] Failed to get style attribute", err)
+			return
+		}
+
+		groups := backgroundImageRe.FindStringSubmatch(style)
+		if len(groups) != 2 {
+			selectionErr = fmt.Errorf("expected 2 match, got %d", len(groups))
+			log.Println("[ERROR] Failed to find image URL", err)
+			return
+		}
+
+		_, err := url.Parse(groups[1])
+		if err != nil {
+			selectionErr = err
+			log.Println("[ERROR] Invalid parsed image URL: ", groups[1], err)
+			return
+		}
+
+		ret.ImagesLink = append(ret.ImagesLink, groups[1])
 	})
 
 	return ret, selectionErr
