@@ -52,7 +52,7 @@ func TestParse_TextWithOneImage(t *testing.T) {
 
 	expectedContent, err := os.ReadFile("./testdata/text_with_one_image_expected.md")
 	is.NoErr(err)
-	expectedDate := time.Date(2024, time.January, 30, 17, 0, 33, 0, time.UTC)
+	expectedDate := time.Date(2024, time.January, 3, 19, 39, 2, 0, time.UTC)
 
 	info, err := Parse(input)
 	is.NoErr(err)
@@ -61,5 +61,25 @@ func TestParse_TextWithOneImage(t *testing.T) {
 	is.True(info.Date.Equal(expectedDate))
 
 	is.True(len(info.ImagesLink) == 1)
-	is.Equal(info.ImagesLink[0], "https://cdn4.cdn-telegram.org/file/hGbVB30bIbZGyRIOrxI-4TJjZLPhubd2Hsxfw1w2PBLm_HrzEiqRwFfErVW9tC3mhxKXk9J9i_C3gXlEKtEJVcbCJCQ6UUpIE_WZ7HS7sR2VqrVGKpzbSu-g-WMGWPhkzuQMRgWA59A53zqW-CWkxVcOU4a9EhVJmvDHgKM0P4Ivo4tYZMO63T49dEqNoRoDXts9XD6jRFC0KHxEs_YT0EulhqcA4oELbLw8oejPURdeu57DCVKatqo0tsHozdyho9zjAb0boTMFc_qRpp4pzftcCFqH0zUDskLbYrm8HriXVLu2cjseAO7EJbS7Hjx6sCVpIBbopSz2JiNg-e2GYQ.jpg")
+	is.Equal(info.ImagesLink[0], "https://cdn-example.com/text_with_one_image.jpg")
+}
+
+func TestParse_TextWithMultipleImages(t *testing.T) {
+	is := is.New(t)
+	input, err := os.Open("./testdata/text_with_multiple_images.html")
+	is.NoErr(err)
+	t.Cleanup(func() { input.Close() })
+
+	expectedDate := time.Date(2024, time.February, 16, 18, 58, 53, 0, time.UTC)
+
+	info, err := Parse(input)
+	is.NoErr(err)
+
+	is.Equal(info.Content, "Text with multiple images")
+	is.True(info.Date.Equal(expectedDate))
+
+	is.True(len(info.ImagesLink) == 3)
+	is.Equal(info.ImagesLink[0], "https://cdn-example.com/text_with_multiple_images_1.jpg")
+	is.Equal(info.ImagesLink[1], "https://cdn-example.com/text_with_multiple_images_2.jpg")
+	is.Equal(info.ImagesLink[2], "https://cdn-example.com/text_with_multiple_images_3.jpg")
 }
