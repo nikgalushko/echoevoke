@@ -1,5 +1,5 @@
 ## TODO 
-- [ ] github actions to start tests
+- [X] github actions to start tests
 - [ ] scrapper 
 - [ ] images downloader
 - [ ] sqlite storage
