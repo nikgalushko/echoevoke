@@ -26,7 +26,7 @@ func ParsePage(data []byte) ([]PostInfo, error) {
 	}
 
 	var posts []PostInfo
-	doc.Find("dev.tgme_widget_message_wrap js-widget_message_wrap").Each(func(i int, s *goquery.Selection) {
+	doc.Find("div.tgme_widget_message_wrap").Each(func(i int, s *goquery.Selection) {
 		html, err := s.Html()
 		if err != nil {
 			log.Println("[ERROR] failed to get HTML from selection", err)
@@ -47,6 +47,7 @@ func ParsePage(data []byte) ([]PostInfo, error) {
 
 // ParsePost returns the content, date and images of a post
 func ParsePost(data []byte) (PostInfo, error) {
+	//log.Println("\n[DEBUG] parsing the post", string(data))
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(data))
 	if err != nil {
 		return PostInfo{}, err
@@ -92,7 +93,7 @@ func selectContent(doc *goquery.Document) (markdown string, err error) {
 
 // selectDate returns the date of the post
 func selectDate(doc *goquery.Document) (date time.Time, err error) {
-	doc.Find("span.tgme_widget_message_meta").Find("time.datetime").Each(func(i int, s *goquery.Selection) {
+	doc.Find("span.tgme_widget_message_meta").Find("[datetime]").Each(func(i int, s *goquery.Selection) {
 		date, err = time.Parse("2006-01-02T15:04:05-07:00", s.AttrOr("datetime", ""))
 		if err != nil {
 			log.Println("[ERROR] failed to parse date", err)

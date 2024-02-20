@@ -21,6 +21,8 @@ func New(db storage.PostsStorage, imgd *ImageDownloader) *Scrapper {
 }
 
 func (s *Scrapper) Scrape(channelID string) error {
+	log.Println("[DEBUG] scraping the channel", channelID)
+
 	latPostID, err := s.db.GetLastPostID(channelID)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
@@ -32,8 +34,9 @@ func (s *Scrapper) Scrape(channelID string) error {
 
 	requestURL := "https://t.me/s/" + channelID
 	if latPostID != 0 {
-		requestURL += fmt.Sprintf("?before=%d", latPostID)
+		requestURL += fmt.Sprintf("?after=%d", latPostID)
 	}
+	log.Println("[DEBUG] request url", requestURL)
 
 	resp, err := http.Get(requestURL)
 	if err != nil {
@@ -50,14 +53,18 @@ func (s *Scrapper) Scrape(channelID string) error {
 		return fmt.Errorf("failed to read the response body: %w", err)
 	}
 
+	log.Println("[DEBUG] parsing the page size", len(data))
+
 	posts, err := parser.ParsePage(data)
 	if err != nil {
 		return fmt.Errorf("failed to parse the page: %w", err)
 	}
 
 	if len(posts) == 0 {
+		log.Println("[DEBUG] no new posts")
 		return nil
 	}
+	log.Println("[DEBUG] found", len(posts), "new posts")
 
 	dbPosts := make([]storage.Post, 0, len(posts))
 	for _, p := range posts {
@@ -72,5 +79,10 @@ func (s *Scrapper) Scrape(channelID string) error {
 		dbPosts = append(dbPosts, dbPost)
 	}
 
-	return s.db.SavePosts(channelID, dbPosts)
+	err = s.db.SavePosts(channelID, dbPosts)
+	if err != nil {
+		return fmt.Errorf("failed to save the posts: %w", err)
+	}
+
+	return nil
 }
