@@ -1,6 +1,9 @@
 package mem
 
 import (
+	"log"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -8,15 +11,17 @@ import (
 )
 
 type MemStorage struct {
-	rw     sync.Mutex
-	posts  map[string][]storage.Post
-	images map[string][]byte
+	rw       sync.Mutex
+	posts    map[string][]storage.Post
+	images   map[string][]byte
+	channels map[string]struct{}
 }
 
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
-		posts:  make(map[string][]storage.Post),
-		images: make(map[string][]byte),
+		posts:    make(map[string][]storage.Post),
+		images:   make(map[string][]byte),
+		channels: make(map[string]struct{}),
 	}
 }
 
@@ -25,7 +30,11 @@ func (m *MemStorage) GetLastPostID(channelID string) (int64, error) {
 	defer m.rw.Unlock()
 
 	if len(m.posts[channelID]) == 0 {
-		return 0, storage.ErrNotFound
+		if _, ok := m.channels[channelID]; !ok {
+			return 0, storage.ErrNotFound
+		}
+
+		return 0, nil
 	}
 
 	return m.posts[channelID][len(m.posts[channelID])-1].ID, nil
@@ -78,4 +87,56 @@ func (m *MemStorage) SaveImage(etag string, data []byte) error {
 
 	m.images[etag] = data
 	return nil
+}
+
+func (m *MemStorage) IsChannelExists(channelID string) (bool, error) {
+	m.rw.Lock()
+	defer m.rw.Unlock()
+
+	_, ok := m.channels[channelID]
+	return ok, nil
+}
+
+func (m *MemStorage) RegisterChannel(channelID string) error {
+	m.rw.Lock()
+	defer m.rw.Unlock()
+
+	m.channels[channelID] = struct{}{}
+	return nil
+}
+
+func (m *MemStorage) UnregisterChannel(channelID string) error {
+	m.rw.Lock()
+	defer m.rw.Unlock()
+
+	delete(m.channels, channelID)
+	return nil
+}
+
+func (m *MemStorage) Dump(dir string) {
+	m.rw.Lock()
+	defer m.rw.Unlock()
+
+	for c := range m.channels {
+		rootDir := filepath.Join(dir, c)
+		err := os.MkdirAll(rootDir, 0755)
+		if err != nil {
+			log.Println("[ERROR] failed to create the channel directory", err)
+			continue
+		}
+
+		for _, p := range m.posts[c] {
+			err = os.WriteFile(filepath.Join(rootDir, p.Date.Format(time.DateTime)+".md"), []byte(p.Message), 0644)
+			if err != nil {
+				log.Println("[ERROR] failed to write the post file", err)
+			}
+		}
+
+		for etag, blob := range m.images {
+			err = os.WriteFile(filepath.Join(rootDir, etag+".jpg"), blob, 0644)
+			if err != nil {
+				log.Println("[ERROR] failed to write the image file", err)
+			}
+		}
+	}
 }
