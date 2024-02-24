@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/url"
 	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	md "github.com/JohannesKaufmann/html-to-markdown"
@@ -14,6 +16,7 @@ import (
 )
 
 type PostInfo struct {
+	ID         int64
 	Content    string
 	Date       time.Time
 	ImagesLink []string
@@ -68,7 +71,12 @@ func ParsePost(data []byte) (PostInfo, error) {
 		return PostInfo{}, err
 	}
 
-	return PostInfo{Content: content, Date: date, ImagesLink: images}, nil
+	postID, err := selectPostID(doc)
+	if err != nil {
+		return PostInfo{}, err
+	}
+
+	return PostInfo{Content: content, Date: date, ImagesLink: images, ID: postID}, nil
 }
 
 // selectContent returns the content of the post as markdown
@@ -88,6 +96,34 @@ func selectContent(doc *goquery.Document) (markdown string, err error) {
 			log.Println("[ERROR] failed to convert HTML to markdown", err)
 		}
 	})
+	return
+}
+
+// select data-post by attribute
+func selectPostID(doc *goquery.Document) (postID int64, err error) {
+	var (
+		dataPost string
+		exists   bool
+	)
+	doc.Find("div.tgme_widget_message[data-post]").Each(func(i int, s *goquery.Selection) {
+		dataPost, exists = s.Attr("data-post")
+		if !exists {
+			err = errors.New("data-post attribute not found")
+			log.Println("[ERROR] failed to get data-post attribute", err)
+		}
+	})
+	if err != nil {
+		return
+	}
+
+	parts := strings.Split(dataPost, "/")
+	if len(parts) != 2 {
+		err = fmt.Errorf("expected 2 parts, got %d", len(parts))
+		log.Println("[ERROR] failed to split data-post", err)
+		return
+
+	}
+	postID, err = strconv.ParseInt(parts[1], 10, 64)
 	return
 }
 

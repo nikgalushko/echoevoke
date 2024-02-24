@@ -23,6 +23,7 @@ func TestParse_OnlyText(t *testing.T) {
 	is.Equal(info.Content, string(expectedContent))
 	is.True(info.Date.Equal(expectedDate))
 	is.True(len(info.ImagesLink) == 0)
+	is.Equal(int64(116), info.ID)
 }
 
 func TestParse_SingleImage(t *testing.T) {
@@ -40,6 +41,7 @@ func TestParse_SingleImage(t *testing.T) {
 
 	is.True(len(info.ImagesLink) == 1)
 	is.Equal(info.ImagesLink[0], "https://cdn-example.com/single_image.jpg")
+	is.Equal(int64(114), info.ID)
 }
 
 func TestParse_TextWithOneImage(t *testing.T) {
@@ -59,6 +61,8 @@ func TestParse_TextWithOneImage(t *testing.T) {
 
 	is.True(len(info.ImagesLink) == 1)
 	is.Equal(info.ImagesLink[0], "https://cdn-example.com/text_with_one_image.jpg")
+
+	is.Equal(int64(111), info.ID)
 }
 
 func TestParse_TextWithMultipleImages(t *testing.T) {
@@ -78,4 +82,6 @@ func TestParse_TextWithMultipleImages(t *testing.T) {
 	is.Equal(info.ImagesLink[0], "https://cdn-example.com/text_with_multiple_images_1.jpg")
 	is.Equal(info.ImagesLink[1], "https://cdn-example.com/text_with_multiple_images_2.jpg")
 	is.Equal(info.ImagesLink[2], "https://cdn-example.com/text_with_multiple_images_3.jpg")
+
+	is.Equal(int64(2171), info.ID)
 }
