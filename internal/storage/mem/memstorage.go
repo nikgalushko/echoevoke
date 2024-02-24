@@ -1,6 +1,7 @@
 package mem
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -126,7 +127,7 @@ func (m *MemStorage) Dump(dir string) {
 		}
 
 		for _, p := range m.posts[c] {
-			err = os.WriteFile(filepath.Join(rootDir, p.Date.Format(time.DateTime)+".md"), []byte(p.Message), 0644)
+			err = os.WriteFile(filepath.Join(rootDir, fmt.Sprintf("%d.md", p.ID)), []byte(p.Message), 0644)
 			if err != nil {
 				log.Println("[ERROR] failed to write the post file", err)
 			}

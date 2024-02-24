@@ -50,7 +50,6 @@ func ParsePage(data []byte) ([]PostInfo, error) {
 
 // ParsePost returns the content, date and images of a post
 func ParsePost(data []byte) (PostInfo, error) {
-	//log.Println("\n[DEBUG] parsing the post", string(data))
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(data))
 	if err != nil {
 		return PostInfo{}, err
