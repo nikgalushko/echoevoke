@@ -14,6 +14,9 @@ github.com/google/uuid
 # github.com/matryer/is v1.4.1
 ## explicit; go 1.14
 github.com/matryer/is
+# github.com/mattn/go-sqlite3 v1.14.22
+## explicit; go 1.19
+github.com/mattn/go-sqlite3
 # golang.org/x/net v0.19.0
 ## explicit; go 1.18
 golang.org/x/net/html
