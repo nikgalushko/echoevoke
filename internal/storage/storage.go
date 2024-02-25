@@ -34,7 +34,7 @@ type (
 
 	// ChannelRegistry stores the channels that are registered to be scraped
 	ChannelsRegistry interface {
-		IsChannelExists(channelID string) (bool, error)
+		IsChannelRegistered(channelID string) (bool, error)
 		RegisterChannel(channelID string) error
 		UnregisterChannel(channelID string) error
 	}

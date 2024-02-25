@@ -90,7 +90,7 @@ func (m *MemStorage) SaveImage(etag string, data []byte) error {
 	return nil
 }
 
-func (m *MemStorage) IsChannelExists(channelID string) (bool, error) {
+func (m *MemStorage) IsChannelRegistered(channelID string) (bool, error) {
 	m.rw.Lock()
 	defer m.rw.Unlock()
 
