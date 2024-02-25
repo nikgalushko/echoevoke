@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -84,5 +85,5 @@ func (i *ImageDownloader) getImageEtag(url string) (string, error) {
 		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	return resp.Header.Get("ETag"), nil
+	return strings.Trim(resp.Header.Get("ETag"), `"`), nil
 }

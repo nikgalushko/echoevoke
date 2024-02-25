@@ -3,12 +3,15 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/matryer/is"
 	_ "github.com/mattn/go-sqlite3"
+
+	"github.com/nikgalushko/echoevoke/assets"
 )
 
 var db *sql.DB
@@ -22,27 +25,23 @@ func TestMain(m *testing.M) {
 	}
 	defer db.Close()
 
-	err = filepath.Walk("../../../sql", func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
+	entries, err := assets.SQL.ReadDir("sql")
+	if err != nil {
+		panic(fmt.Sprintf("failed to read sql directory: %s", err))
+	}
 
-		if !info.IsDir() && filepath.Ext(path) == ".sql" {
-			sqlBytes, err := os.ReadFile(path)
+	for _, entry := range entries {
+		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".sql" {
+			sqlBytes, err := assets.SQL.ReadFile(filepath.Join("sql", entry.Name()))
 			if err != nil {
-				return err
+				panic(fmt.Sprintf("failed to read sql file: %s", err))
 			}
 
 			_, err = db.ExecContext(context.Background(), string(sqlBytes))
 			if err != nil {
-				return err
+				panic(fmt.Sprintf("failed to execute sql: %s", err))
 			}
 		}
-
-		return nil
-	})
-	if err != nil {
-		panic(err)
 	}
 
 	os.Exit(m.Run())
