@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -40,7 +41,10 @@ func (r *ChannelRegistry) IsChannelRegistered(channelID string) (bool, error) {
 	var one int
 	err := r.db.QueryRow("select 1 from registry where channel_id = ?", channelID).Scan(&one)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
 		return false, err
 	}
-	return one == 1, nil
+	return true, nil
 }
