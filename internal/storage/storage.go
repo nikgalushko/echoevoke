@@ -14,8 +14,8 @@ type (
 		Date time.Time
 		// Message is the text of the post in markdown format
 		Message string
-		// Images is the list of images etag that are in the post
-		Images []string
+		// Images is the list of images id that are in the post
+		Images []int64
 	}
 
 	// PostsStorage stores the posts

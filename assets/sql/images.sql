@@ -1,4 +1,6 @@
 create table images (
-    etag text primary key,
-    data blob
+    id integer primary key autoincrement,
+    etag text,
+    data blob,
+    unique (etag)
 );
