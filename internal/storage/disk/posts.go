@@ -49,7 +49,7 @@ func (s *PostsStorage) SavePosts(channelID string, posts []storage.Post) (err er
 	defer imageStmt.Close()
 
 	for _, post := range posts {
-		_, err = postStmt.Exec(channelID, post.Date.UTC().Unix(), post.Message)
+		_, err = postStmt.Exec(post.ID, channelID, post.Date.UTC().Unix(), post.Message)
 		if err != nil {
 			return fmt.Errorf("failed to save post: %w", err)
 		}
@@ -66,37 +66,45 @@ func (s *PostsStorage) SavePosts(channelID string, posts []storage.Post) (err er
 }
 
 func (s *PostsStorage) GetPosts(channelID string, from, to time.Time) ([]storage.Post, error) {
-	rows, err := s.db.Query("select id, date, message from posts where channel_id=? and date >= ? and date < ? order by id desc",
+	rows, err := s.db.Query("select id, date, message from posts where channel_id=? and date >= ? and date < ? order by id asc",
 		channelID, from.UTC().Unix(), to.UTC().Unix(),
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, storage.ErrNotFound
-		}
-
 		return nil, fmt.Errorf("failed to get posts: %w", err)
 	}
 
 	var (
 		posts []storage.Post
-		ids   []int64
+		ids   []any
 	)
 	for rows.Next() {
-		var post storage.Post
-		err := rows.Scan(&post.ID, &post.Date, &post.Message)
+		var (
+			post          storage.Post
+			unixTimestamp int64
+		)
+		err := rows.Scan(&post.ID, &unixTimestamp, &post.Message)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan post: %w", err)
 		}
+		post.Date = time.Unix(unixTimestamp, 0).UTC()
 
 		posts = append(posts, post)
 		ids = append(ids, post.ID)
 	}
 
+	if len(posts) == 0 {
+		return nil, storage.ErrNotFound
+	}
+
+	if len(ids) == 0 {
+		return posts, nil
+	}
+
 	rows, err = s.db.Query(`select posts.id as post_id, post_images.image_id from posts
 		join post_images on post_images.post_id = posts.id
 		where posts.id in (?`+strings.Repeat(",?", len(ids)-1)+`)
-		order by post_id desc`,
-		ids,
+		order by post_id asc`,
+		ids...,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -107,7 +115,7 @@ func (s *PostsStorage) GetPosts(channelID string, from, to time.Time) ([]storage
 	}
 
 	prevPostID := int64(-1)
-	i := -1
+	i := 0
 	for rows.Next() {
 		var imageID, postID int64
 
@@ -118,7 +126,9 @@ func (s *PostsStorage) GetPosts(channelID string, from, to time.Time) ([]storage
 
 		if prevPostID != postID {
 			prevPostID = postID
-			i++
+			for posts[i].ID != postID {
+				i++
+			}
 		}
 
 		posts[i].Images = append(posts[i].Images, imageID)
