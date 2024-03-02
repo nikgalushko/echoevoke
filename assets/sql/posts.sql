@@ -10,5 +10,5 @@ create table post_images (
     post_id integer not null,
     image_id integer not null,
     foreign key (post_id) references posts(id),
-    foreign key (image_id) references images(id),
+    foreign key (image_id) references images(id)
 );

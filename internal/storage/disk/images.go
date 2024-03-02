@@ -17,14 +17,15 @@ func NewImagesStorage(db *sql.DB) *ImagesStorage {
 	}
 }
 
-func (s *ImagesStorage) SaveImage(etag string, data []byte) error {
-	query := "insert into images (etag, data) values (?,?)"
-	_, err := s.db.Exec(query, etag, data)
+func (s *ImagesStorage) SaveImage(etag string, data []byte) (int64, error) {
+	var imgID int64
+	query := "insert into images (etag, data) values (?,?) returning id"
+	err := s.db.QueryRow(query, etag, data).Scan(&imgID)
 	if err != nil {
-		return fmt.Errorf("failed to save image: %w", err)
+		return 0, fmt.Errorf("failed to save image: %w", err)
 	}
 
-	return nil
+	return imgID, nil
 }
 
 func (s *ImagesStorage) GetImage(etag string) ([]byte, error) {
@@ -43,19 +44,19 @@ func (s *ImagesStorage) GetImage(etag string) ([]byte, error) {
 	return data, nil
 }
 
-func (s *ImagesStorage) IsImageExists(etag string) (bool, error) {
-	query := "select count(*) from images where etag=?"
+func (s *ImagesStorage) IsImageExists(etag string) (int64, error) {
+	query := "select id from images where etag=?"
 	row := s.db.QueryRow(query, etag)
 
-	var count int
-	err := row.Scan(&count)
+	var imgID int64
+	err := row.Scan(&imgID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return false, nil
+			return 0, storage.ErrNotFound
 		}
 
-		return false, fmt.Errorf("failed to check if image exists: %w", err)
+		return 0, fmt.Errorf("failed to check if image exists: %w", err)
 	}
 
-	return count > 0, nil
+	return imgID, nil
 }

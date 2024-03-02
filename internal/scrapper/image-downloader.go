@@ -20,17 +20,17 @@ func NewImageDownloader(db storage.ImagesStorage) *ImageDownloader {
 	return &ImageDownloader{db: db}
 }
 
-func (i *ImageDownloader) DownloadImages(urls []string) []string {
-	var etags []string
+func (i *ImageDownloader) DownloadImages(urls []string) []int64 {
+	var ids []int64
 	for _, url := range urls {
 		etag, err := i.getImageEtag(url)
 		if err != nil {
 			log.Println("[WARN] failed to get image etag; use uuid", err)
 			etag = uuid.New().String()
 		} else {
-			exists, _ := i.db.IsImageExists(etag)
-			if exists {
-				etags = append(etags, etag)
+			imgID, err := i.db.IsImageExists(etag)
+			if err == nil {
+				ids = append(ids, imgID)
 				continue
 			}
 		}
@@ -41,14 +41,15 @@ func (i *ImageDownloader) DownloadImages(urls []string) []string {
 			continue
 		}
 
-		if err := i.db.SaveImage(etag, blob); err != nil {
+		imgID, err := i.db.SaveImage(etag, blob)
+		if err != nil {
 			log.Println("[ERROR] failed to save image", err)
 		}
 
-		etags = append(etags, etag)
+		ids = append(ids, imgID)
 	}
 
-	return etags
+	return ids
 }
 
 func (i *ImageDownloader) getImage(url string) ([]byte, error) {

@@ -6,22 +6,32 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nikgalushko/echoevoke/internal/storage"
 )
 
-type MemStorage struct {
-	rw       sync.Mutex
-	posts    map[string][]storage.Post
-	images   map[string][]byte
-	channels map[string]struct{}
-}
+type (
+	MemStorage struct {
+		rw       sync.Mutex
+		posts    map[string][]storage.Post
+		images   map[string]image
+		channels map[string]struct{}
+
+		imageIDCounter atomic.Int64
+	}
+
+	image struct {
+		data []byte
+		id   int64
+	}
+)
 
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
 		posts:    make(map[string][]storage.Post),
-		images:   make(map[string][]byte),
+		images:   make(map[string]image),
 		channels: make(map[string]struct{}),
 	}
 }
@@ -74,20 +84,29 @@ func (m *MemStorage) GetPosts(channelID string, from, to time.Time) ([]storage.P
 	return ret, nil
 }
 
-func (m *MemStorage) IsImageExists(etag string) (bool, error) {
+func (m *MemStorage) IsImageExists(etag string) (int64, error) {
 	m.rw.Lock()
 	defer m.rw.Unlock()
 
-	_, ok := m.images[etag]
-	return ok, nil
+	img, ok := m.images[etag]
+	if !ok {
+		return 0, storage.ErrNotFound
+	}
+	return img.id, nil
 }
 
-func (m *MemStorage) SaveImage(etag string, data []byte) error {
+func (m *MemStorage) SaveImage(etag string, data []byte) (int64, error) {
 	m.rw.Lock()
 	defer m.rw.Unlock()
 
-	m.images[etag] = data
-	return nil
+	if img, ok := m.images[etag]; ok {
+		return img.id, nil
+	}
+
+	img := image{data: data, id: m.imageIDCounter.Add(1)}
+	m.images[etag] = img
+
+	return img.id, nil
 }
 
 func (m *MemStorage) IsChannelRegistered(channelID string) (bool, error) {
@@ -133,8 +152,8 @@ func (m *MemStorage) Dump(dir string) {
 			}
 		}
 
-		for etag, blob := range m.images {
-			err = os.WriteFile(filepath.Join(rootDir, etag+".jpg"), blob, 0644)
+		for etag, img := range m.images {
+			err = os.WriteFile(filepath.Join(rootDir, etag+".jpg"), img.data, 0644)
 			if err != nil {
 				log.Println("[ERROR] failed to write the image file", err)
 			}

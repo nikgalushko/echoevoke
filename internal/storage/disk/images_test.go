@@ -17,9 +17,8 @@ func TestImagesStorage(t *testing.T) {
 	t.Run("image does not exist", func(t *testing.T) {
 		is := is.New(t)
 
-		exists, err := images.IsImageExists("etag1")
-		is.NoErr(err)
-		is.True(!exists)
+		_, err := images.IsImageExists("etag1")
+		is.True(errors.Is(err, storage.ErrNotFound))
 
 		data, err := images.GetImage("etag1")
 		is.True(errors.Is(err, storage.ErrNotFound))
@@ -29,15 +28,15 @@ func TestImagesStorage(t *testing.T) {
 	t.Run("save and get image", func(t *testing.T) {
 		is := is.New(t)
 
-		err := images.SaveImage("etag1", []byte("image1"))
+		savedID, err := images.SaveImage("etag1", []byte("image1"))
 		is.NoErr(err)
 
 		imageData, err := images.GetImage("etag1")
 		is.NoErr(err)
 		is.Equal(string(imageData), "image1")
 
-		exists, err := images.IsImageExists("etag1")
+		existsID, err := images.IsImageExists("etag1")
 		is.NoErr(err)
-		is.True(exists)
+		is.Equal(savedID, existsID)
 	})
 }

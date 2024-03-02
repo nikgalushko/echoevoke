@@ -39,7 +39,7 @@ func TestMain(m *testing.M) {
 
 			_, err = db.ExecContext(context.Background(), string(sqlBytes))
 			if err != nil {
-				panic(fmt.Sprintf("failed to execute sql: %s", err))
+				panic(fmt.Sprintf("failed to execute sql %s: %s", entry.Name(), err))
 			}
 		}
 	}

@@ -28,8 +28,8 @@ type (
 
 	// ImagesStorage stores the images blobs
 	ImagesStorage interface {
-		IsImageExists(etag string) (bool, error)
-		SaveImage(etag string, data []byte) error
+		IsImageExists(etag string) (int64, error)
+		SaveImage(etag string, data []byte) (int64, error)
 	}
 
 	// ChannelRegistry stores the channels that are registered to be scraped
