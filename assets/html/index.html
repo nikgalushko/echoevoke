@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Echoevoke</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #f0f0f0;
+            padding: 20px 0;
+        }
+        input[type="text"] {
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            width: 400px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: none;
+            background-color: #007bff;
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .response-block {
+            background-color: #c3e6cb;
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+            transition: opacity 0.5s ease-in-out;
+            opacity: 0;
+        }
+        .main {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Echoevoke</h1>
+    </header>
+    <div class="main">
+        <div>
+            <input type="text" id="inputText" placeholder="Enter t.me link">
+            <button onclick="sendToServer()">Send</button>
+        </div>
+        <div class="response-block" id="responseBlock">Channel reg</div>
+    </div>
+
+    <script>
+        function sendToServer() {
+            const inputText = document.getElementById('inputText').value;
+            const data = { text: inputText };
+
+            fetch('/channel/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (response.ok) {
+                    document.getElementById('responseBlock').style.opacity = '1';
+                    setTimeout(function() {
+                        document.getElementById('responseBlock').style.opacity = '0';
+                    }, 1500);
+                } else {
+                    console.error('Error:', response.statusText);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+    </script>
+</body>
+</html>

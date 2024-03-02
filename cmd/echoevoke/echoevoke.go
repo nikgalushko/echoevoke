@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"io/fs"
+	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -78,4 +81,12 @@ func initSQL() error {
 
 func run() {
 	fmt.Println("Running the server")
+
+	static, err := fs.Sub(assets.HTML, "html")
+	if err != nil {
+		log.Fatal("failed to read html directory:", err)
+	}
+
+	http.Handle("/", http.FileServer(http.FS(static)))
+	http.ListenAndServe(fmt.Sprintf(":%d", args.port), nil)
 }
