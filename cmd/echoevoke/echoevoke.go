@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 
 	"github.com/nikgalushko/echoevoke/assets"
+	"github.com/nikgalushko/echoevoke/internal/storage"
 )
 
 var args struct {
@@ -36,19 +38,14 @@ func init() {
 }
 
 func main() {
-	if args.init {
-		err := initSQL()
-		if err != nil {
-			_ = os.Remove(args.dbFile)
-			fmt.Println("Failed to initialize SQL tables:", err)
-			os.Exit(1)
-		}
-	} else {
-		run()
+	err := run()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }
 
-func initSQL() error {
+func initDB() error {
 	fmt.Println("Initializing SQL tables")
 
 	db, err := sql.Open("sqlite3", args.dbFile)
@@ -79,7 +76,15 @@ func initSQL() error {
 	return nil
 }
 
-func run() {
+func run() error {
+	if args.init {
+		err := initDB()
+		if err != nil {
+			_ = os.Remove(args.dbFile)
+			return fmt.Errorf("failed to initialize SQL tables:", err)
+		}
+	}
+
 	fmt.Println("Running the server")
 
 	static, err := fs.Sub(assets.HTML, "html")
@@ -88,5 +93,45 @@ func run() {
 	}
 
 	http.Handle("/", http.FileServer(http.FS(static)))
-	http.ListenAndServe(fmt.Sprintf(":%d", args.port), nil)
+	err = http.ListenAndServe(fmt.Sprintf(":%d", args.port), nil)
+	if err != nil {
+		return fmt.Errorf("failed to start the server: %w", err)
+	}
+
+	return nil
+}
+
+type Server struct {
+	registry storage.ChannelsRegistry
+	mux      *http.ServeMux
+}
+
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.mux.ServeHTTP(w, r)
+}
+
+func (s *Server) routes() {}
+
+func (s *Server) handleChannelRegistration() http.HandlerFunc {
+	type request struct {
+		ChannelID string `json:"channel_id"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req request
+		err := json.NewDecoder(r.Body).Decode(&req)
+		if err != nil {
+			http.Error(w, "failed to decode request", http.StatusBadRequest)
+			return
+		}
+
+		err = s.registry.RegisterChannel(req.ChannelID)
+		if err != nil {
+			log.Println("[ERROR] failed to register channel:", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	}
 }
