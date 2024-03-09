@@ -11,12 +11,16 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/robfig/cron/v3"
 
 	"github.com/nikgalushko/echoevoke/assets"
+	"github.com/nikgalushko/echoevoke/internal/scrapper"
 	"github.com/nikgalushko/echoevoke/internal/storage"
 	"github.com/nikgalushko/echoevoke/internal/storage/disk"
 )
@@ -74,6 +78,7 @@ func initDB(db *sql.DB) error {
 }
 
 func run() error {
+	startAt := time.Now()
 	db, err := sql.Open("sqlite3", args.dbFile)
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
@@ -89,6 +94,59 @@ func run() error {
 	fmt.Println("Running the server")
 
 	s := NewServer(disk.NewChannelRegistry(db))
+	posts := disk.NewPostsStorage(db)
+	images := disk.NewImagesStorage(db)
+
+	scrp := scrapper.New(posts, scrapper.NewImageDownloader(images))
+
+	c := cron.New(cron.WithSeconds())
+	c.AddFunc("0 * * * *", func() {
+		dir := filepath.Join("./", strconv.FormatInt(time.Now().Unix(), 10))
+
+		channels, err := s.registry.AllChannels(context.Background())
+		if err != nil {
+			log.Println("[ERROR] failed to get all channels:", err)
+			return
+		}
+
+		for _, ch := range channels {
+			rootDir := filepath.Join(dir, ch)
+			err := os.MkdirAll(rootDir, 0755)
+			if err != nil {
+				log.Println("[ERROR] failed to create the channel directory", err)
+				continue
+			}
+
+			posts, err := posts.GetPosts(context.Background(), ch, startAt, time.Now())
+			if err != nil {
+				log.Printf("[ERROR] failed to get posts from %s: %s\n", ch, err.Error())
+				continue
+			}
+
+			for _, p := range posts {
+				err = os.WriteFile(filepath.Join(rootDir, fmt.Sprintf("%d.md", p.ID)), []byte(p.Message), 0644)
+				if err != nil {
+					log.Printf("[ERROR] failed to write the post file from %s: %s", ch, err)
+				}
+			}
+		}
+	})
+
+	c.AddFunc("*/10 * * * *", func() {
+		channels, err := s.registry.AllChannels(context.Background())
+		if err != nil {
+			log.Println("[ERROR] failed to get all channels:", err)
+			return
+		}
+
+		for _, ch := range channels {
+			err = scrp.Scrape(context.TODO(), ch)
+			if err != nil {
+				log.Printf("[ERROR] failed to scrape %s: %s\n", ch, err.Error())
+			}
+		}
+	})
+	c.Start()
 
 	err = http.ListenAndServe(fmt.Sprintf(":%d", args.port), s)
 	if err != nil {

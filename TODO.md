@@ -15,3 +15,12 @@
 
 ## Storage
 - [ ] use sync.RWMutes in `memstorage`
+
+## Common
+- [ ] add to logger field `channel`
+- [ ] sync folder and files after write
+- [ ] move to other package cron functions
+- [ ] make cron configurable
+- [ ] add tests to `disk.posts`
+- [ ] `GetPosts` must returns not images id but etga
+- [ ] `SavePosts` must get images etag as argument not ids

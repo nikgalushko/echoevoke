@@ -35,5 +35,6 @@ type (
 		IsChannelRegistered(ctx context.Context, channelID string) (bool, error)
 		RegisterChannel(ctx context.Context, channelID string) error
 		UnregisterChannel(ctx context.Context, channelID string) error
+		AllChannels(ctx context.Context) ([]string, error)
 	}
 )

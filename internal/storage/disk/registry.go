@@ -48,3 +48,23 @@ func (r *ChannelRegistry) IsChannelRegistered(ctx context.Context, channelID str
 	}
 	return true, nil
 }
+
+func (r *ChannelRegistry) AllChannels(ctx context.Context) ([]string, error) {
+	rows, err := r.db.QueryContext(ctx, "select channel_id from registry")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all channels: %w", err)
+	}
+	defer rows.Close()
+
+	var channels []string
+	for rows.Next() {
+		var channel string
+		err = rows.Scan(&channel)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan channel: %w", err)
+		}
+		channels = append(channels, channel)
+	}
+
+	return channels, nil
+}

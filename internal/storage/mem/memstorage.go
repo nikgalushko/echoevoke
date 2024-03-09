@@ -134,6 +134,17 @@ func (m *MemStorage) UnregisterChannel(ctx context.Context, channelID string) er
 	return nil
 }
 
+func (m *MemStorage) AllChannels(ctx context.Context) ([]string, error) {
+	m.rw.Lock()
+	defer m.rw.Unlock()
+
+	var ret []string
+	for c := range m.channels {
+		ret = append(ret, c)
+	}
+	return ret, nil
+}
+
 func (m *MemStorage) Dump(ctx context.Context, dir string) {
 	m.rw.Lock()
 	defer m.rw.Unlock()
