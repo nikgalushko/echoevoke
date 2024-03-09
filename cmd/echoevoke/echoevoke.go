@@ -12,8 +12,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	_ "github.com/mattn/go-sqlite3"
+
 	"github.com/nikgalushko/echoevoke/assets"
 	"github.com/nikgalushko/echoevoke/internal/storage"
+	"github.com/nikgalushko/echoevoke/internal/storage/disk"
 )
 
 var args struct {
@@ -45,14 +50,8 @@ func main() {
 	}
 }
 
-func initDB() error {
+func initDB(db *sql.DB) error {
 	fmt.Println("Initializing SQL tables")
-
-	db, err := sql.Open("sqlite3", args.dbFile)
-	if err != nil {
-		return fmt.Errorf("failed to open database: %w", err)
-	}
-	defer db.Close()
 
 	entries, err := assets.SQL.ReadDir("sql")
 	if err != nil {
@@ -77,23 +76,25 @@ func initDB() error {
 }
 
 func run() error {
+	db, err := sql.Open("sqlite3", args.dbFile)
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
+
 	if args.init {
-		err := initDB()
+		err := initDB(db)
 		if err != nil {
 			_ = os.Remove(args.dbFile)
-			return fmt.Errorf("failed to initialize SQL tables:", err)
+			return fmt.Errorf("failed to initialize SQL tables: %w", err)
 		}
 	}
 
 	fmt.Println("Running the server")
 
-	static, err := fs.Sub(assets.HTML, "html")
-	if err != nil {
-		log.Fatal("failed to read html directory:", err)
-	}
+	s := NewServer(disk.NewChannelRegistry(db))
 
-	http.Handle("/", http.FileServer(http.FS(static)))
-	err = http.ListenAndServe(fmt.Sprintf(":%d", args.port), nil)
+	err = http.ListenAndServe(fmt.Sprintf(":%d", args.port), s)
 	if err != nil {
 		return fmt.Errorf("failed to start the server: %w", err)
 	}
@@ -103,14 +104,40 @@ func run() error {
 
 type Server struct {
 	registry storage.ChannelsRegistry
-	mux      *http.ServeMux
+	mux      *chi.Mux
+}
+
+func NewServer(registry storage.ChannelsRegistry) *Server {
+	s := &Server{
+		registry: registry,
+		mux:      chi.NewRouter(),
+	}
+
+	s.routes()
+
+	return s
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mux.ServeHTTP(w, r)
 }
 
-func (s *Server) routes() {}
+func (s *Server) routes() {
+	s.mux.Use(middleware.RequestID)
+	s.mux.Use(middleware.Logger)
+	s.mux.Use(middleware.Recoverer)
+
+	s.mux.Route("/channel", func(r chi.Router) {
+		r.Post("/register", s.handleChannelRegistration())
+	})
+
+	static, err := fs.Sub(assets.HTML, "html")
+	if err != nil {
+		log.Fatal("failed to read html directory:", err)
+	}
+
+	s.mux.Get("/", http.FileServer(http.FS(static)).ServeHTTP)
+}
 
 func (s *Server) handleChannelRegistration() http.HandlerFunc {
 	type request struct {
