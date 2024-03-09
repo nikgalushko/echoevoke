@@ -22,14 +22,12 @@ import (
 )
 
 var args struct {
-	init     bool
 	port     int
 	logLevel string
 	dbFile   string
 }
 
 func init() {
-	flag.BoolVar(&args.init, "init", false, "initialize SQL tables")
 	flag.IntVar(&args.port, "port", 8080, "HTTP server port")
 	flag.StringVar(&args.logLevel, "log-level", "info", "log level")
 	flag.StringVar(&args.dbFile, "db-file", "echoevoke.db", "SQLite database file")
@@ -82,12 +80,10 @@ func run() error {
 	}
 	defer db.Close()
 
-	if args.init {
-		err := initDB(db)
-		if err != nil {
-			_ = os.Remove(args.dbFile)
-			return fmt.Errorf("failed to initialize SQL tables: %w", err)
-		}
+	err = initDB(db)
+	if err != nil {
+		_ = os.Remove(args.dbFile)
+		return fmt.Errorf("failed to initialize SQL tables: %w", err)
 	}
 
 	fmt.Println("Running the server")
@@ -154,7 +150,7 @@ func (s *Server) handleChannelRegistration() http.HandlerFunc {
 
 		err = s.registry.RegisterChannel(req.ChannelID)
 		if err != nil {
-			log.Println("[ERROR] failed to register channel:", err)
+			log.Println("[ERROR] handle channel registration:", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

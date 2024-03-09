@@ -1,4 +1,4 @@
-create table posts (
+create table if not exists posts (
     id integer primary key,
     channel_id text not null,
     date integer not null,
@@ -6,7 +6,7 @@ create table posts (
 );
 
 
-create table post_images (
+create table if not exists post_images (
     post_id integer not null,
     image_id integer not null,
     foreign key (post_id) references posts(id),
