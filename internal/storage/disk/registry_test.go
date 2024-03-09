@@ -63,7 +63,7 @@ func TestChannelRegistry(t *testing.T) {
 	is.NoErr(err)
 
 	// Verify that the channel is registered
-	isRegistered, err := registry.IsChannelRegistered(knownChannel)
+	isRegistered, err := registry.IsChannelRegistered(ctx, knownChannel)
 	is.NoErr(err)
 	is.True(isRegistered)
 
@@ -72,12 +72,12 @@ func TestChannelRegistry(t *testing.T) {
 	is.NoErr(err)
 
 	// Verify that the unregistered channel is not exist
-	isRegistered, err = registry.IsChannelRegistered(knownChannel)
+	isRegistered, err = registry.IsChannelRegistered(ctx, knownChannel)
 	is.NoErr(err)
 	is.True(!isRegistered)
 
 	// Verify that the unknown channel is not exist
-	isRegistered, err = registry.IsChannelRegistered(unknownChannel)
+	isRegistered, err = registry.IsChannelRegistered(ctx, unknownChannel)
 	is.NoErr(err)
 	is.True(!isRegistered)
 }

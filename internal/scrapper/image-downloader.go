@@ -1,6 +1,7 @@
 package scrapper
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -20,28 +21,28 @@ func NewImageDownloader(db storage.ImagesStorage) *ImageDownloader {
 	return &ImageDownloader{db: db}
 }
 
-func (i *ImageDownloader) DownloadImages(urls []string) []int64 {
+func (i *ImageDownloader) DownloadImages(ctx context.Context, urls []string) []int64 {
 	var ids []int64
 	for _, url := range urls {
-		etag, err := i.getImageEtag(url)
+		etag, err := i.getImageEtag(ctx, url)
 		if err != nil {
 			log.Println("[WARN] failed to get image etag; use uuid", err)
 			etag = uuid.New().String()
 		} else {
-			imgID, err := i.db.IsImageExists(etag)
+			imgID, err := i.db.IsImageExists(ctx, etag)
 			if err == nil {
 				ids = append(ids, imgID)
 				continue
 			}
 		}
 
-		blob, err := i.getImage(url)
+		blob, err := i.getImage(ctx, url)
 		if err != nil {
 			log.Println("[ERROR] failed to get image", err)
 			continue
 		}
 
-		imgID, err := i.db.SaveImage(etag, blob)
+		imgID, err := i.db.SaveImage(ctx, etag, blob)
 		if err != nil {
 			log.Println("[ERROR] failed to save image", err)
 		}
@@ -52,7 +53,7 @@ func (i *ImageDownloader) DownloadImages(urls []string) []int64 {
 	return ids
 }
 
-func (i *ImageDownloader) getImage(url string) ([]byte, error) {
+func (i *ImageDownloader) getImage(ctx context.Context, url string) ([]byte, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -68,8 +69,8 @@ func (i *ImageDownloader) getImage(url string) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-func (i *ImageDownloader) getImageEtag(url string) (string, error) {
-	req, err := http.NewRequest(http.MethodHead, url, nil)
+func (i *ImageDownloader) getImageEtag(ctx context.Context, url string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
 	if err != nil {
 		return "", err
 	}

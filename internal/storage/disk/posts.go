@@ -1,6 +1,7 @@
 package disk
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -20,7 +21,7 @@ func NewPostsStorage(db *sql.DB) *PostsStorage {
 	}
 }
 
-func (s *PostsStorage) SavePosts(channelID string, posts []storage.Post) (err error) {
+func (s *PostsStorage) SavePosts(ctx context.Context, channelID string, posts []storage.Post) (err error) {
 	var tx *sql.Tx
 	tx, err = s.db.Begin()
 	if err != nil {
@@ -49,13 +50,13 @@ func (s *PostsStorage) SavePosts(channelID string, posts []storage.Post) (err er
 	defer imageStmt.Close()
 
 	for _, post := range posts {
-		_, err = postStmt.Exec(post.ID, channelID, post.Date.UTC().Unix(), post.Message)
+		_, err = postStmt.ExecContext(ctx, post.ID, channelID, post.Date.UTC().Unix(), post.Message)
 		if err != nil {
 			return fmt.Errorf("failed to save post: %w", err)
 		}
 
 		for _, imageID := range post.Images {
-			_, err = imageStmt.Exec(post.ID, imageID)
+			_, err = imageStmt.ExecContext(ctx, post.ID, imageID)
 			if err != nil {
 				return fmt.Errorf("failed to save image: %w", err)
 			}
@@ -65,8 +66,8 @@ func (s *PostsStorage) SavePosts(channelID string, posts []storage.Post) (err er
 	return nil
 }
 
-func (s *PostsStorage) GetPosts(channelID string, from, to time.Time) ([]storage.Post, error) {
-	rows, err := s.db.Query("select id, date, message from posts where channel_id=? and date >= ? and date < ? order by id asc",
+func (s *PostsStorage) GetPosts(ctx context.Context, channelID string, from, to time.Time) ([]storage.Post, error) {
+	rows, err := s.db.QueryContext(ctx, "select id, date, message from posts where channel_id=? and date >= ? and date < ? order by id asc",
 		channelID, from.UTC().Unix(), to.UTC().Unix(),
 	)
 	if err != nil {
@@ -100,7 +101,7 @@ func (s *PostsStorage) GetPosts(channelID string, from, to time.Time) ([]storage
 		return posts, nil
 	}
 
-	rows, err = s.db.Query(`select posts.id as post_id, post_images.image_id from posts
+	rows, err = s.db.QueryContext(ctx, `select posts.id as post_id, post_images.image_id from posts
 		join post_images on post_images.post_id = posts.id
 		where posts.id in (?`+strings.Repeat(",?", len(ids)-1)+`)
 		order by post_id asc`,
@@ -137,13 +138,13 @@ func (s *PostsStorage) GetPosts(channelID string, from, to time.Time) ([]storage
 	return posts, nil
 }
 
-func (s *PostsStorage) GetLastPost(channelID string) (storage.Post, error) {
+func (s *PostsStorage) GetLastPost(ctx context.Context, channelID string) (storage.Post, error) {
 	return storage.Post{}, errors.New("not implemented")
 }
 
-func (s *PostsStorage) GetLastPostID(channelID string) (int64, error) {
+func (s *PostsStorage) GetLastPostID(ctx context.Context, channelID string) (int64, error) {
 	var lastPostID int64
-	err := s.db.QueryRow("select id from posts where channel_id=? order by id desc limit 1", channelID).Scan(&lastPostID)
+	err := s.db.QueryRowContext(ctx, "select id from posts where channel_id=? order by id desc limit 1", channelID).Scan(&lastPostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return 0, storage.ErrNotFound

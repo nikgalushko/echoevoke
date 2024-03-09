@@ -1,6 +1,7 @@
 package disk
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -11,16 +12,17 @@ import (
 
 func TestImagesStorage(t *testing.T) {
 	is := is.New(t)
+	ctx := context.Background()
 
 	images := NewImagesStorage(db)
 
 	t.Run("image does not exist", func(t *testing.T) {
 		is := is.New(t)
 
-		_, err := images.IsImageExists("etag1")
+		_, err := images.IsImageExists(ctx, "etag1")
 		is.True(errors.Is(err, storage.ErrNotFound))
 
-		data, err := images.GetImage("etag1")
+		data, err := images.GetImage(ctx, "etag1")
 		is.True(errors.Is(err, storage.ErrNotFound))
 		is.Equal(data, nil)
 	})
@@ -28,14 +30,14 @@ func TestImagesStorage(t *testing.T) {
 	t.Run("save and get image", func(t *testing.T) {
 		is := is.New(t)
 
-		savedID, err := images.SaveImage("etag1", []byte("image1"))
+		savedID, err := images.SaveImage(ctx, "etag1", []byte("image1"))
 		is.NoErr(err)
 
-		imageData, err := images.GetImage("etag1")
+		imageData, err := images.GetImage(ctx, "etag1")
 		is.NoErr(err)
 		is.Equal(string(imageData), "image1")
 
-		existsID, err := images.IsImageExists("etag1")
+		existsID, err := images.IsImageExists(ctx, "etag1")
 		is.NoErr(err)
 		is.Equal(savedID, existsID)
 	})

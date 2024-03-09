@@ -1,6 +1,7 @@
 package disk
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 )
 
 func TestPostsStorage(t *testing.T) {
+	ctx := context.Background()
 	toTime := func(unix int64) time.Time { return time.Unix(unix, 0).UTC() }
 	s := NewPostsStorage(db)
 
@@ -24,13 +26,13 @@ func TestPostsStorage(t *testing.T) {
 			{ID: 3, Date: toTime(125), Message: "message3", Images: []int64{2, 3}},
 			{ID: 4, Date: toTime(126), Images: []int64{4}},
 		}
-		err := s.SavePosts(channelWithPosts, posts)
+		err := s.SavePosts(ctx, channelWithPosts, posts)
 		is.NoErr(err)
 
 		t.Run("get posts where one has two images and another not", func(t *testing.T) {
 			is := is.New(t)
 
-			actualPosts, err := s.GetPosts(channelWithPosts, toTime(124), toTime(126))
+			actualPosts, err := s.GetPosts(ctx, channelWithPosts, toTime(124), toTime(126))
 			is.NoErr(err)
 			is.Equal(len(actualPosts), 2)
 			is.Equal(posts[1:3], actualPosts)
@@ -39,7 +41,7 @@ func TestPostsStorage(t *testing.T) {
 		t.Run("last post id", func(t *testing.T) {
 			is := is.New(t)
 
-			lastPostID, err := s.GetLastPostID(channelWithPosts)
+			lastPostID, err := s.GetLastPostID(ctx, channelWithPosts)
 			is.NoErr(err)
 			is.Equal(lastPostID, posts[len(posts)-1].ID)
 		})
@@ -47,7 +49,7 @@ func TestPostsStorage(t *testing.T) {
 		t.Run("get posts where one has no images", func(t *testing.T) {
 			is := is.New(t)
 
-			actualPosts, err := s.GetPosts(channelWithPosts, toTime(124), toTime(125))
+			actualPosts, err := s.GetPosts(ctx, channelWithPosts, toTime(124), toTime(125))
 			is.NoErr(err)
 			is.Equal(len(actualPosts), 1)
 			is.Equal(posts[1], actualPosts[0])
@@ -56,7 +58,7 @@ func TestPostsStorage(t *testing.T) {
 		t.Run("get posts where all posts have images", func(t *testing.T) {
 			is := is.New(t)
 
-			actualPosts, err := s.GetPosts(channelWithPosts, toTime(123), toTime(127))
+			actualPosts, err := s.GetPosts(ctx, channelWithPosts, toTime(123), toTime(127))
 			is.NoErr(err)
 			is.Equal(len(actualPosts), len(posts))
 			is.Equal(posts, actualPosts)
@@ -67,11 +69,11 @@ func TestPostsStorage(t *testing.T) {
 		const channelWithoutPosts = "channel2"
 		is := is.New(t)
 
-		posts, err := s.GetPosts(channelWithoutPosts, toTime(0), toTime(0))
+		posts, err := s.GetPosts(ctx, channelWithoutPosts, toTime(0), toTime(0))
 		is.True(errors.Is(err, storage.ErrNotFound))
 		is.Equal(len(posts), 0)
 
-		_, err = s.GetLastPostID(channelWithoutPosts)
+		_, err = s.GetLastPostID(ctx, channelWithoutPosts)
 		is.True(errors.Is(err, storage.ErrNotFound))
 	})
 }

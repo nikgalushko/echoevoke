@@ -3,6 +3,7 @@ package scrapper
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -24,10 +25,10 @@ func New(db storage.PostsStorage, imgd *ImageDownloader) *Scrapper {
 	return &Scrapper{db: db, imgd: imgd}
 }
 
-func (s *Scrapper) Scrape(channelID string) error {
+func (s *Scrapper) Scrape(ctx context.Context, channelID string) error {
 	log.Println("[DEBUG] scraping the channel", channelID)
 
-	lastPostID, err := s.db.GetLastPostID(channelID)
+	lastPostID, err := s.db.GetLastPostID(ctx, channelID)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			log.Printf("[WARN] the channel %s is not registered to scape; skipped", channelID)
@@ -36,7 +37,7 @@ func (s *Scrapper) Scrape(channelID string) error {
 		return err
 	}
 
-	data, err := s.DoRequest(TMeQuery{ChannelID: channelID, LastPostID: lastPostID})
+	data, err := s.DoRequest(ctx, TMeQuery{ChannelID: channelID, LastPostID: lastPostID})
 	if err != nil {
 		return fmt.Errorf("failed to do the request: %w", err)
 	}
@@ -68,13 +69,13 @@ func (s *Scrapper) Scrape(channelID string) error {
 			ID:      p.ID,
 		}
 		if len(p.ImagesLink) > 0 {
-			dbPost.Images = s.imgd.DownloadImages(p.ImagesLink)
+			dbPost.Images = s.imgd.DownloadImages(ctx, p.ImagesLink)
 		}
 
 		dbPosts = append(dbPosts, dbPost)
 	}
 
-	err = s.db.SavePosts(channelID, dbPosts)
+	err = s.db.SavePosts(ctx, channelID, dbPosts)
 	if err != nil {
 		return fmt.Errorf("failed to save the posts: %w", err)
 	}
@@ -87,18 +88,18 @@ type TMeQuery struct {
 	LastPostID int64
 }
 
-func (s *Scrapper) DoRequest(query TMeQuery) ([]byte, error) {
+func (s *Scrapper) DoRequest(ctx context.Context, query TMeQuery) ([]byte, error) {
 	requestURL := "https://t.me/s/" + query.ChannelID
 	log.Println("[DEBUG] request query", query)
 
 	if query.LastPostID == 0 {
-		return s.doGetRequest(requestURL)
+		return s.doGetRequest(ctx, requestURL)
 	}
 
-	return s.doPostRequest(requestURL, query.LastPostID)
+	return s.doPostRequest(ctx, requestURL, query.LastPostID)
 }
 
-func (s *Scrapper) doGetRequest(requestURL string) ([]byte, error) {
+func (s *Scrapper) doGetRequest(ctx context.Context, requestURL string) ([]byte, error) {
 	resp, err := http.Get(requestURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get the channel page: %w", err)
@@ -117,9 +118,9 @@ func (s *Scrapper) doGetRequest(requestURL string) ([]byte, error) {
 	return data, nil
 }
 
-func (s *Scrapper) doPostRequest(requestURL string, lastPostID int64) ([]byte, error) {
+func (s *Scrapper) doPostRequest(ctx context.Context, requestURL string, lastPostID int64) ([]byte, error) {
 	requestURL += fmt.Sprintf("?after=%d", lastPostID)
-	req, err := http.NewRequest(http.MethodPost, requestURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create the request: %w", err)
 	}

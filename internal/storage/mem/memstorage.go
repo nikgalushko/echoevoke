@@ -1,6 +1,7 @@
 package mem
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -36,7 +37,7 @@ func NewMemStorage() *MemStorage {
 	}
 }
 
-func (m *MemStorage) GetLastPostID(channelID string) (int64, error) {
+func (m *MemStorage) GetLastPostID(ctx context.Context, channelID string) (int64, error) {
 	m.rw.Lock()
 	defer m.rw.Unlock()
 
@@ -51,7 +52,7 @@ func (m *MemStorage) GetLastPostID(channelID string) (int64, error) {
 	return m.posts[channelID][len(m.posts[channelID])-1].ID, nil
 }
 
-func (m *MemStorage) GetLastPost(channelID string) (storage.Post, error) {
+func (m *MemStorage) GetLastPost(ctx context.Context, channelID string) (storage.Post, error) {
 	m.rw.Lock()
 	defer m.rw.Unlock()
 
@@ -62,7 +63,7 @@ func (m *MemStorage) GetLastPost(channelID string) (storage.Post, error) {
 	return m.posts[channelID][len(m.posts[channelID])-1], nil
 }
 
-func (m *MemStorage) SavePosts(channelID string, posts []storage.Post) error {
+func (m *MemStorage) SavePosts(ctx context.Context, channelID string, posts []storage.Post) error {
 	m.rw.Lock()
 	defer m.rw.Unlock()
 
@@ -70,7 +71,7 @@ func (m *MemStorage) SavePosts(channelID string, posts []storage.Post) error {
 	return nil
 }
 
-func (m *MemStorage) GetPosts(channelID string, from, to time.Time) ([]storage.Post, error) {
+func (m *MemStorage) GetPosts(ctx context.Context, channelID string, from, to time.Time) ([]storage.Post, error) {
 	m.rw.Lock()
 	defer m.rw.Unlock()
 
@@ -84,7 +85,7 @@ func (m *MemStorage) GetPosts(channelID string, from, to time.Time) ([]storage.P
 	return ret, nil
 }
 
-func (m *MemStorage) IsImageExists(etag string) (int64, error) {
+func (m *MemStorage) IsImageExists(ctx context.Context, etag string) (int64, error) {
 	m.rw.Lock()
 	defer m.rw.Unlock()
 
@@ -95,7 +96,7 @@ func (m *MemStorage) IsImageExists(etag string) (int64, error) {
 	return img.id, nil
 }
 
-func (m *MemStorage) SaveImage(etag string, data []byte) (int64, error) {
+func (m *MemStorage) SaveImage(ctx context.Context, etag string, data []byte) (int64, error) {
 	m.rw.Lock()
 	defer m.rw.Unlock()
 
@@ -109,7 +110,7 @@ func (m *MemStorage) SaveImage(etag string, data []byte) (int64, error) {
 	return img.id, nil
 }
 
-func (m *MemStorage) IsChannelRegistered(channelID string) (bool, error) {
+func (m *MemStorage) IsChannelRegistered(ctx context.Context, channelID string) (bool, error) {
 	m.rw.Lock()
 	defer m.rw.Unlock()
 
@@ -117,7 +118,7 @@ func (m *MemStorage) IsChannelRegistered(channelID string) (bool, error) {
 	return ok, nil
 }
 
-func (m *MemStorage) RegisterChannel(channelID string) error {
+func (m *MemStorage) RegisterChannel(ctx context.Context, channelID string) error {
 	m.rw.Lock()
 	defer m.rw.Unlock()
 
@@ -125,7 +126,7 @@ func (m *MemStorage) RegisterChannel(channelID string) error {
 	return nil
 }
 
-func (m *MemStorage) UnregisterChannel(channelID string) error {
+func (m *MemStorage) UnregisterChannel(ctx context.Context, channelID string) error {
 	m.rw.Lock()
 	defer m.rw.Unlock()
 
@@ -133,7 +134,7 @@ func (m *MemStorage) UnregisterChannel(channelID string) error {
 	return nil
 }
 
-func (m *MemStorage) Dump(dir string) {
+func (m *MemStorage) Dump(ctx context.Context, dir string) {
 	m.rw.Lock()
 	defer m.rw.Unlock()
 

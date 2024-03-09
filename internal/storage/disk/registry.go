@@ -18,8 +18,8 @@ func NewChannelRegistry(db *sql.DB) *ChannelRegistry {
 	}
 }
 
-func (r *ChannelRegistry) RegisterChannel(channelID string) error {
-	_, err := r.db.ExecContext(context.Background(),
+func (r *ChannelRegistry) RegisterChannel(ctx context.Context, channelID string) error {
+	_, err := r.db.ExecContext(ctx,
 		"insert or ignore into registry (channel_id,registered_at) values (?,?)", channelID, time.Now().UTC().Unix(),
 	)
 	if err != nil {
@@ -29,17 +29,17 @@ func (r *ChannelRegistry) RegisterChannel(channelID string) error {
 	return err
 }
 
-func (r *ChannelRegistry) UnregisterChannel(channelID string) error {
-	_, err := r.db.ExecContext(context.Background(), "delete from registry where channel_id = ?", channelID)
+func (r *ChannelRegistry) UnregisterChannel(ctx context.Context, channelID string) error {
+	_, err := r.db.ExecContext(ctx, "delete from registry where channel_id = ?", channelID)
 	if err != nil {
 		err = fmt.Errorf("failed to unregister the channel: %w", err)
 	}
 	return err
 }
 
-func (r *ChannelRegistry) IsChannelRegistered(channelID string) (bool, error) {
+func (r *ChannelRegistry) IsChannelRegistered(ctx context.Context, channelID string) (bool, error) {
 	var one int
-	err := r.db.QueryRow("select 1 from registry where channel_id = ?", channelID).Scan(&one)
+	err := r.db.QueryRowContext(ctx, "select 1 from registry where channel_id = ?", channelID).Scan(&one)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil

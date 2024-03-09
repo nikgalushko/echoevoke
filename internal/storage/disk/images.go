@@ -1,6 +1,7 @@
 package disk
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -17,10 +18,10 @@ func NewImagesStorage(db *sql.DB) *ImagesStorage {
 	}
 }
 
-func (s *ImagesStorage) SaveImage(etag string, data []byte) (int64, error) {
+func (s *ImagesStorage) SaveImage(ctx context.Context, etag string, data []byte) (int64, error) {
 	var imgID int64
 	query := "insert into images (etag, data) values (?,?) returning id"
-	err := s.db.QueryRow(query, etag, data).Scan(&imgID)
+	err := s.db.QueryRowContext(ctx, query, etag, data).Scan(&imgID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to save image: %w", err)
 	}
@@ -28,9 +29,9 @@ func (s *ImagesStorage) SaveImage(etag string, data []byte) (int64, error) {
 	return imgID, nil
 }
 
-func (s *ImagesStorage) GetImage(etag string) ([]byte, error) {
+func (s *ImagesStorage) GetImage(ctx context.Context, etag string) ([]byte, error) {
 	query := "select data from images where etag=?"
-	row := s.db.QueryRow(query, etag)
+	row := s.db.QueryRowContext(ctx, query, etag)
 
 	var data []byte
 	err := row.Scan(&data)
@@ -44,9 +45,9 @@ func (s *ImagesStorage) GetImage(etag string) ([]byte, error) {
 	return data, nil
 }
 
-func (s *ImagesStorage) IsImageExists(etag string) (int64, error) {
+func (s *ImagesStorage) IsImageExists(ctx context.Context, etag string) (int64, error) {
 	query := "select id from images where etag=?"
-	row := s.db.QueryRow(query, etag)
+	row := s.db.QueryRowContext(ctx, query, etag)
 
 	var imgID int64
 	err := row.Scan(&imgID)

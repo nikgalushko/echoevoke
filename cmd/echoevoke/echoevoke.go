@@ -148,7 +148,7 @@ func (s *Server) handleChannelRegistration() http.HandlerFunc {
 			return
 		}
 
-		err = s.registry.RegisterChannel(req.ChannelID)
+		err = s.registry.RegisterChannel(r.Context(), req.ChannelID)
 		if err != nil {
 			log.Println("[ERROR] handle channel registration:", err)
 			w.WriteHeader(http.StatusInternalServerError)
