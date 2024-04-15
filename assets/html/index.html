@@ -65,7 +65,7 @@
     <script>
         function sendToServer() {
             const inputText = document.getElementById('inputText').value;
-            const data = { text: inputText };
+            const data = { channel_id: inputText };
 
             fetch('/channel/register', {
                 method: 'POST',
