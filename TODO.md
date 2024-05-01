@@ -25,3 +25,4 @@
 - [ ] add tests to `disk.posts`
 - [ ] `GetPosts` must returns not images id but etga
 - [ ] `SavePosts` must get images etag as argument not ids
+- [ ] two modes: a) separated channels block b) like as feed
