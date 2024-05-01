@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -24,9 +24,9 @@ func NewImageDownloader(db storage.ImagesStorage) *ImageDownloader {
 func (i *ImageDownloader) DownloadImages(ctx context.Context, urls []string) []int64 {
 	var ids []int64
 	for _, url := range urls {
-		etag, err := i.getImageEtag(ctx, url)
+		etag, err := i.headImageEtag(ctx, url)
 		if err != nil {
-			log.Println("[WARN] failed to get image etag; use uuid", err)
+			log.Warn("failed to get image etag; use uuid", slog.Any("err", err))
 			etag = uuid.New().String()
 		} else {
 			imgID, err := i.db.IsImageExists(ctx, etag)
@@ -36,15 +36,15 @@ func (i *ImageDownloader) DownloadImages(ctx context.Context, urls []string) []i
 			}
 		}
 
-		blob, err := i.getImage(ctx, url)
+		blob, err := i.downloadImage(ctx, url)
 		if err != nil {
-			log.Println("[ERROR] failed to get image", err)
+			log.Error("failed to downlaod image", slog.Any("err", err))
 			continue
 		}
 
 		imgID, err := i.db.SaveImage(ctx, etag, blob)
 		if err != nil {
-			log.Println("[ERROR] failed to save image", err)
+			log.Error("failed to save image", slog.Any("err", err))
 		}
 
 		ids = append(ids, imgID)
@@ -53,7 +53,7 @@ func (i *ImageDownloader) DownloadImages(ctx context.Context, urls []string) []i
 	return ids
 }
 
-func (i *ImageDownloader) getImage(ctx context.Context, url string) ([]byte, error) {
+func (i *ImageDownloader) downloadImage(ctx context.Context, url string) ([]byte, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func (i *ImageDownloader) getImage(ctx context.Context, url string) ([]byte, err
 	return io.ReadAll(resp.Body)
 }
 
-func (i *ImageDownloader) getImageEtag(ctx context.Context, url string) (string, error) {
+func (i *ImageDownloader) headImageEtag(ctx context.Context, url string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
 	if err != nil {
 		return "", err

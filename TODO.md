@@ -12,6 +12,7 @@
 
 ## Scrapper
 - [ ] if the channel is not registered then skip it
+- [ ] fetch and store channel title
 
 ## Storage
 - [ ] use sync.RWMutes in `memstorage`

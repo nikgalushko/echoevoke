@@ -3,7 +3,7 @@ package mem
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -153,21 +153,21 @@ func (m *MemStorage) Dump(ctx context.Context, dir string) {
 		rootDir := filepath.Join(dir, c)
 		err := os.MkdirAll(rootDir, 0755)
 		if err != nil {
-			log.Println("[ERROR] failed to create the channel directory", err)
+			slog.Error("failed to create the channel directory", err)
 			continue
 		}
 
 		for _, p := range m.posts[c] {
 			err = os.WriteFile(filepath.Join(rootDir, fmt.Sprintf("%d.md", p.ID)), []byte(p.Message), 0644)
 			if err != nil {
-				log.Println("[ERROR] failed to write the post file", err)
+				slog.Error("failed to write the post file", err)
 			}
 		}
 
 		for etag, img := range m.images {
 			err = os.WriteFile(filepath.Join(rootDir, etag+".jpg"), img.data, 0644)
 			if err != nil {
-				log.Println("[ERROR] failed to write the image file", err)
+				slog.Error(" failed to write the image file", err)
 			}
 		}
 	}

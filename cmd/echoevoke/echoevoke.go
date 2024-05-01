@@ -7,7 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -42,6 +42,9 @@ func init() {
 	}
 
 	flag.Parse()
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
 }
 
 func main() {
@@ -105,7 +108,7 @@ func run() error {
 
 		channels, err := s.registry.AllChannels(context.Background())
 		if err != nil {
-			log.Println("[ERROR] failed to get all channels:", err)
+			slog.Error("failed to get all channels to scan", slog.Any("err", err))
 			return
 		}
 
@@ -113,20 +116,20 @@ func run() error {
 			rootDir := filepath.Join(dir, ch)
 			err := os.MkdirAll(rootDir, 0755)
 			if err != nil {
-				log.Println("[ERROR] failed to create the channel directory", err)
+				slog.Error(" failed to create the channel directory", slog.Any("err", err))
 				continue
 			}
 
 			posts, err := posts.GetPosts(context.Background(), ch, startAt, time.Now())
 			if err != nil {
-				log.Printf("[ERROR] failed to get posts from %s: %s\n", ch, err.Error())
+				slog.Error("failed to get posts from", slog.String("value", ch), slog.Any("err", err))
 				continue
 			}
 
 			for _, p := range posts {
 				err = os.WriteFile(filepath.Join(rootDir, fmt.Sprintf("%d.md", p.ID)), []byte(p.Message), 0644)
 				if err != nil {
-					log.Printf("[ERROR] failed to write the post file from %s: %s", ch, err)
+					slog.Error(" failed to write the post file from", slog.String("value", ch), slog.Any("err", err))
 				}
 			}
 		}
@@ -135,14 +138,14 @@ func run() error {
 	c.AddFunc("*/10 * * * *", func() {
 		channels, err := s.registry.AllChannels(context.Background())
 		if err != nil {
-			log.Println("[ERROR] failed to get all channels:", err)
+			slog.Error("failed to get all channels", slog.Any("err", err))
 			return
 		}
 
 		for _, ch := range channels {
 			err = scrp.Scrape(context.TODO(), ch)
 			if err != nil {
-				log.Printf("[ERROR] failed to scrape %s: %s\n", ch, err.Error())
+				slog.Error("failed to scrape", slog.String("channel", ch), slog.Any("err", err))
 			}
 		}
 	})
@@ -187,7 +190,7 @@ func (s *Server) routes() {
 
 	static, err := fs.Sub(assets.HTML, "html")
 	if err != nil {
-		log.Fatal("failed to read html directory:", err)
+		slog.Error("failed to read html directory", slog.Any("err", err))
 	}
 
 	s.mux.Get("/", http.FileServer(http.FS(static)).ServeHTTP)
@@ -208,7 +211,7 @@ func (s *Server) handleChannelRegistration() http.HandlerFunc {
 
 		err = s.registry.RegisterChannel(r.Context(), req.ChannelID)
 		if err != nil {
-			log.Println("[ERROR] handle channel registration:", err)
+			slog.Error("handle channel registration", slog.String("value", req.ChannelID), slog.Any("err", err))
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

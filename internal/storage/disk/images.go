@@ -45,6 +45,23 @@ func (s *ImagesStorage) GetImage(ctx context.Context, etag string) ([]byte, erro
 	return data, nil
 }
 
+// TODO: либо etag либо id сейчас какая-то херня; storage.Post хранит id, а получаем по etag
+func (s *ImagesStorage) GetImageByID(ctx context.Context, id int64) ([]byte, error) {
+	query := "select data from images where id=?"
+	row := s.db.QueryRowContext(ctx, query, id)
+
+	var data []byte
+	err := row.Scan(&data)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, storage.ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to get image: %w", err)
+	}
+
+	return data, nil
+}
+
 func (s *ImagesStorage) IsImageExists(ctx context.Context, etag string) (int64, error) {
 	query := "select id from images where etag=?"
 	row := s.db.QueryRowContext(ctx, query, etag)

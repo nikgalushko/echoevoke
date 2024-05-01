@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -15,6 +15,8 @@ import (
 	"github.com/nikgalushko/echoevoke/internal/parser"
 	"github.com/nikgalushko/echoevoke/internal/storage"
 )
+
+var log = slog.With(slog.String("pkg", "scrapper"))
 
 type Scrapper struct {
 	db   storage.PostsStorage
@@ -26,28 +28,33 @@ func New(db storage.PostsStorage, imgd *ImageDownloader) *Scrapper {
 }
 
 func (s *Scrapper) Scrape(ctx context.Context, channelID string) error {
-	log.Println("[DEBUG] scraping the channel", channelID)
+	log := log.With(slog.String("channel", channelID))
+
+	log.Debug("scraping the channel", slog.String("value", channelID))
 
 	lastPostID, err := s.db.GetLastPostID(ctx, channelID)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			log.Printf("[WARN] the channel %s is not registered to scape; skipped", channelID)
+			log.Warn("is not registered to scape; skipped")
 			return nil
 		}
 		return err
 	}
+	log.Debug("last post id", slog.Int64("value", lastPostID))
 
 	data, err := s.DoRequest(ctx, TMeQuery{ChannelID: channelID, LastPostID: lastPostID})
 	if err != nil {
+		log.Error("request to t.me", slog.Int64("last post id", lastPostID))
+
 		return fmt.Errorf("failed to do the request: %w", err)
 	}
 
 	if len(data) == 0 {
-		log.Println("[DEBUG] no new posts")
+		log.Info("no new posts")
 		return nil
 	}
 
-	log.Println("[DEBUG] parsing the page size", len(data))
+	log.Debug("parsing the page", slog.Int("size", len(data)))
 
 	posts, err := parser.ParsePage(data)
 	if err != nil {
@@ -55,11 +62,11 @@ func (s *Scrapper) Scrape(ctx context.Context, channelID string) error {
 	}
 
 	if len(posts) == 0 {
-		log.Println("[DEBUG] no new posts")
+		log.Info("no new posts")
 		os.WriteFile(fmt.Sprintf("page%d.html", time.Now().Unix()), data, 0644)
 		return nil
 	}
-	log.Println("[DEBUG] found", len(posts), "new posts")
+	log.Info("found new posts", slog.Int("value", len(posts)))
 
 	dbPosts := make([]storage.Post, 0, len(posts))
 	for _, p := range posts {
@@ -90,7 +97,6 @@ type TMeQuery struct {
 
 func (s *Scrapper) DoRequest(ctx context.Context, query TMeQuery) ([]byte, error) {
 	requestURL := "https://t.me/s/" + query.ChannelID
-	log.Println("[DEBUG] request query", query)
 
 	if query.LastPostID == 0 {
 		return s.doGetRequest(ctx, requestURL)

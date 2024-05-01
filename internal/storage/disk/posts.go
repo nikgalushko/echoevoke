@@ -147,7 +147,7 @@ func (s *PostsStorage) GetLastPostID(ctx context.Context, channelID string) (int
 	err := s.db.QueryRowContext(ctx, "select id from posts where channel_id=? order by id desc limit 1", channelID).Scan(&lastPostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return 0, storage.ErrNotFound
+			return 0, nil
 		}
 
 		return 0, fmt.Errorf("failed to get last post id: %w", err)

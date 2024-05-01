@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -14,6 +14,8 @@ import (
 	md "github.com/JohannesKaufmann/html-to-markdown"
 	"github.com/PuerkitoBio/goquery"
 )
+
+var log = slog.With(slog.String("pkg", "parser"))
 
 type PostInfo struct {
 	ID         int64
@@ -32,13 +34,13 @@ func ParsePage(data []byte) ([]PostInfo, error) {
 	doc.Find("div.tgme_widget_message_wrap").Each(func(i int, s *goquery.Selection) {
 		html, err := s.Html()
 		if err != nil {
-			log.Println("[ERROR] failed to get HTML from selection", err)
+			log.Error("get HTML from selection", slog.String("action", "page"), slog.Any("err", err))
 			return
 		}
 
 		info, err := ParsePost([]byte(html))
 		if err != nil {
-			log.Println("[ERROR] failed to parse post", err)
+			log.Error("parse post", slog.String("action", "post"), slog.Any("err", err))
 			return
 		}
 
@@ -86,13 +88,13 @@ func selectContent(doc *goquery.Document) (markdown string, err error) {
 		converter := md.NewConverter("", true, nil)
 		html, err = s.Html()
 		if err != nil {
-			log.Println("[ERROR] failed to get HTML from selection", err)
+			slog.Error("get HTML from selection", slog.String("action", "post"), slog.Any("err", err))
 			return
 		}
 
 		markdown, err = converter.ConvertString(html)
 		if err != nil {
-			log.Println("[ERROR] failed to convert HTML to markdown", err)
+			slog.Error("convert HTML to markdown", slog.Any("err", err))
 		}
 	})
 	return
@@ -108,7 +110,7 @@ func selectPostID(doc *goquery.Document) (postID int64, err error) {
 		dataPost, exists = s.Attr("data-post")
 		if !exists {
 			err = errors.New("data-post attribute not found")
-			log.Println("[ERROR] failed to get data-post attribute", err)
+			slog.Error("data-post attribute not found")
 		}
 	})
 	if err != nil {
@@ -118,20 +120,25 @@ func selectPostID(doc *goquery.Document) (postID int64, err error) {
 	parts := strings.Split(dataPost, "/")
 	if len(parts) != 2 {
 		err = fmt.Errorf("expected 2 parts, got %d", len(parts))
-		log.Println("[ERROR] failed to split data-post", err)
+		slog.Error("split data-post")
 		return
-
 	}
+
 	postID, err = strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		slog.Error("parse post id", slog.String("value", parts[1]))
+	}
+
 	return
 }
 
 // selectDate returns the date of the post
 func selectDate(doc *goquery.Document) (date time.Time, err error) {
 	doc.Find("span.tgme_widget_message_meta").Find("[datetime]").Each(func(i int, s *goquery.Selection) {
-		date, err = time.Parse("2006-01-02T15:04:05-07:00", s.AttrOr("datetime", ""))
+		value := s.AttrOr("datetime", "")
+		date, err = time.Parse("2006-01-02T15:04:05-07:00", value)
 		if err != nil {
-			log.Println("[ERROR] failed to parse date", err)
+			slog.Warn("parse post date; use default", slog.Any("value", value), slog.Any("err", err))
 		}
 	})
 	return
@@ -145,20 +152,22 @@ func selectImages(doc *goquery.Document) (images []string, err error) {
 		style, exists := s.Attr("style")
 		if !exists {
 			err = errors.New("style attribute not found")
-			log.Println("[ERROR] failed to get style attribute", err)
+
+			slog.Error("get style attribute")
 			return
 		}
 
 		groups := backgroundImageRe.FindStringSubmatch(style)
 		if len(groups) != 2 {
 			err = fmt.Errorf("expected 2 match, got %d", len(groups))
-			log.Println("[ERROR] Failed to find image URL", err)
+
+			slog.Error("can not find image URL", slog.String("value", style), slog.Any("err", err))
 			return
 		}
 
 		_, err = url.Parse(groups[1])
 		if err != nil {
-			log.Println("[ERROR] Invalid parsed image URL: ", groups[1], err)
+			slog.Error("invalid parsed image URL", slog.String("value", groups[1]), slog.Any("err", err))
 			return
 		}
 
